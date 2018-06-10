@@ -1,0 +1,10 @@
+# Site settings
+title: 'André Vieira' # Your Title
+tagline: 'Applied Sociology, Data analysis & Code' # A brief tagline for your site
+# sidebar_image: /images/cover.jpg
+
+# Build settings
+markdown: redcarpet
+highlighter: pygments
+baseurl: "" # the subpath of your site, e.g. /blog/
+url: "http://andrepvieira.github.io"
