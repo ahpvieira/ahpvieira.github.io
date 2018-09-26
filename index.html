@@ -139,35 +139,52 @@ favicon: favicon-rocket.ico
       </div>
       
       <div class="col-md-10 col-md-offset-1 postlinkcontainer">
-        <a href="/r/giving-a-thematic-touch-to-your-interactive-chart/" class="postlink internallink">
+        <!-- <a href="/r/giving-a-thematic-touch-to-your-interactive-chart/" class="postlink internallink"> -->
           <h3>Permanence and completion of higher education<span class="pull-right">2019 (under review)</span></h3>
-        </a>
+        <!-- </a> -->
         <span class="bar"></span>
       </div>
       
       <div class="col-md-10 col-md-offset-1 postlinkcontainer">
-        <a href="/r/my-KISS-attempt-to-rstatsgoes10k-contest/" class="postlink internallink">
+        <!-- <a href="/r/my-KISS-attempt-to-rstatsgoes10k-contest/" class="postlink internallink"> -->
           <h3>Stratification in Higher Education and Labor Market Returns<span class="pull-right">August 2018</span></h3>
-        </a>
+        <!-- </a> -->
         <span class="bar"></span>
       </div>
       
       <div class="col-md-10 col-md-offset-1 postlinkcontainer">
-        <a href="/personal/2017-goals/" class="postlink internallink">
+        <a href="http://publicacoes.fcc.org.br/ojs/index.php/cp/article/view/4766/pdf_1" class="postlink internallink">
           <h3>Racial mismatch and teacher expectations<span class="pull-right">June 2018</span></h3>
         </a>
         <span class="bar"></span>
       </div>
       
       <div class="col-md-10 col-md-offset-1 postlinkcontainer">
-        <a href="/r/thematic-interactive-map/" class="postlink internallink">
-          <h3><a href="http://ipea.gov.br/portal/index.php?option=com_content&view=article&id=33432:perfil-das-organizacoes-da-sociedade-civil-no-brasil&catid=410:2018&directory=1">Civil Society Organizations in Brazil</a><span class="pull-right">June 2018</span></h3>
+        <a href="http://ipea.gov.br/portal/index.php?option=com_content&view=article&id=33432:perfil-das-organizacoes-da-sociedade-civil-no-brasil&catid=410:2018&directory=1" class="postlink internallink">
+          <h3>Civil Society Organizations in Brazil<span class="pull-right">June 2018</span></h3>
         </a>
         <span class="bar"></span>
       </div>
         
       <div class="col-md-12 text-right">
         <p><a class="internallink thunder">View more <span class="fa fa-angle-double-right"></span></a></p>
+      </div>
+    </div>
+        
+         <div class="row">
+      <div class="col-md-12 text-center">
+        <h2>From the blog</h2>
+      </div>
+      {% for post in site.posts limit:4 %}
+      <div class="col-md-10 col-md-offset-1 postlinkcontainer">
+        <a href="{{ post.url }}" class="postlink internallink">
+          <h3>{{ post.title }}<span class="pull-right">{{ post.date | date: "%B %Y" }}</span></h3>
+        </a>
+        <span class="bar"></span>
+      </div>
+      {% endfor %}  
+      <div class="col-md-12 text-right">
+        <p><a href="/blog/" class="internallink thunder">View more <span class="fa fa-angle-double-right"></span></a></p>
       </div>
     </div>
     
