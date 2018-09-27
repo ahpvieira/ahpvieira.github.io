@@ -1,0 +1,351 @@
+---
+title: "The most unequal among unequal"
+date: "September 25, 2018"
+output: html_document
+htmlwidgets: true
+      
+---
+
+```{r setup, include=FALSE, message=F, warning=F, echo=FALSE}
+library(tidyverse)
+library(readr)
+library(readxl)
+library(httr)
+library(ggalt)
+library(plotly)
+library(janitor)
+library(knitr)
+library(brocks)
+```
+
+<br/>
+
+Earlier this month, the OECD released the results of this year edition of the [Education at a Glance](http://www.oecd.org/education/education-at-a-glance/) report. This annual report is one of the leading sources of comparable national statistics on the state of education worldwide. It provides data on the structure, finances and performance of education systems in OECD and partner countries. They also publish separate country notes for each country. The [note on Brazil](http://download.inep.gov.br/acoes_internacionais/estatisticas_educacionais/ocde/education_at_a_glance/Country_Note_Nota_sobre_o_Brasil.pdf) does not necessarily reveal new patterns, but there are obviously some takeaways we can single out and explore in more detail. The main goal of this text (and the next ones) is not so much to present new information, but to help other researchers replicate findings using educational data -- that is why I share the script used to create this post at the end of the article.
+
+In this text, I'll go a little deeper into  one of the key messages from the OECD report: in some aspects, Brazilian educational system is the most unequal among unequal. This is true for three indicators: tertiary attainment among young adults, teachers' average actual salaries, and expenditure per student between levels of education. There are more differences in the first two indicators among states in Brazil than between countries in OECD, and the difference in expenditure per student between tertiary and earlier levels of education in Brazil is the highest of all OECD and partner countries (the unit of analysis being here level of education).
+
+```{r read, echo=F, message=F, warning=F, echo=FALSE, comment=F, error=F, results="hide"}
+setwd("C:/Users/ahpvi/Documents/ahpvieira.github.io/data")
+url <- "https://nces.ed.gov/surveys/annualreports/oecd/tables_2017/xls/tabnA1.1_bra_eng.xlsx"
+GET(url, write_disk(tf <- tempfile(fileext = ".xlsx")))
+attain_sub <- read_excel(tf, 
+                          skip = 8, 
+                          col_types = c("text", rep("skip", 37), 
+                                        "numeric", "skip", "numeric",
+                                        "numeric", "skip", "numeric"),
+                          col_names = c("state", "tert_prop_25_64", 
+                                        "tert_se_25_64", "tert_prop_25_34",
+                                        "tert_se_25_34"), n_max = 28)
+
+# "tabela1194" can be download here: https://sidra.ibge.gov.br/tabela/1194
+
+pib_pc <- read_csv2("tabela1194.csv", 
+                    skip = 4, 
+                    col_names = c("state", "gdp_pc"), n_max = 28)
+
+pib_pc <- dplyr::mutate(pib_pc, state = ifelse(state == "Brasil", "Brazil", state))
+
+#' The table "Total expenditure on educational institutions per full-time equivalent student (2015)" (962018021p1t070.xlsx) can be downloaded here: https://www.oecd-ilibrary.org/education/education-at-a-glance-2018_eag-2018-en
+
+exp_perc <- read_excel("962018021p1t070.xlsx", 
+                       sheet = 2, 
+                       skip = 16, 
+                       n_max = 56,
+                       col_types = c("text", rep("skip", 15), "numeric", 
+                                     rep("skip", 5), "numeric", rep("skip", 7)),
+                       col_names = c("country", "pri_sec", "tertiary"))
+
+# The table "Distribution of tertiary graduates, by field of study (2016)" (962018021p1t059.xlsx) can be downloaded here: https://www.oecd-ilibrary.org/education/education-at-a-glance-2018_eag-2018-en
+
+grad_field <- read_excel("962018021p1t059.xlsx", 
+                         skip = 12,
+                         n_max = 51,
+                         col_types = c(rep(c("guess", "skip"), 11)),
+                       col_names = c("country", "education", 
+                                     "arts", "social", "business",
+                                     "natural", "ict", "eng", "agric",
+                                     "health", "serv")
+                         )
+```
+
+There are abysmal differences in tertiary attainment among states in Brazil. The figure below presents these subnational disparities in more detail, comparing them with GDP per capita, which OECD suggests is related to college attainment rates. The association between tertiary attainment and GDP per capita is quite straightforward. According to National Household Sample Survey (PNAD) 2015, while 32% of young adults have attained tertiary education in Distrito Federal (which has the highest GDP per capita), the share is only 7% in Maranhão (the lowest GDP per capita). Northeastern states are really in trouble in both indicators.
+
+<br/>
+
+```{r region, echo=F, message=F, warning=F, echo=FALSE, comment=F, error=F, out.extra = 'style="padding: 50px"'}
+attain_sub %>% 
+      dplyr::mutate_at(vars(contains("prop")), .funs = as.numeric) %>% 
+      dplyr::mutate(state = factor(state,
+                                   levels = unique(state)[order(tert_prop_25_64, decreasing = FALSE)])) %>% 
+      left_join(pib_pc) %>% 
+      dplyr::mutate(state = ifelse(state == "Distrito Federal", "Distrito \n Federal", state),
+                    region = case_when(state == "Brazil" ~ "Brazil",
+                                       state %in% c("Alagoas", "Bahia",
+                                                    "Ceará", "Paraíba",
+                                                    "Pernambuco", "Piauí",
+                                                    "Rio Grande do Norte",
+                                                    "Sergipe", "Maranhão") ~ "Northeast",
+                                       state %in% c("Acre", "Amapá", "Amazonas",
+                                                    "Pará", "Rondônia",
+                                                    "Roraima", "Tocantins") ~ "North",
+                                       state %in% c("São Paulo", "Rio de Janeiro",
+                                                    "Minas Gerais", "Espírito Santo") ~ "Southeast",
+                                       state %in% c("Santa Catarina",
+                                                    "Rio Grande do Sul",
+                                                    "Paraná") ~ "South",
+                                       state %in% c("Mato Grosso",
+                                                    "Mato Grosso do Sul",
+                                                    "Goiás",
+                                                    "Distrito \n Federal") ~ "Center-West")) %>% 
+      
+      
+      plot_ly(x = ~gdp_pc, y = ~tert_prop_25_34, text = ~state, # showlegend = FALSE, 
+              color = ~region, colors = c("#1f77b4", "darkblue",
+                                          "#ff7f0e", "#d62728",
+                                          "#2ca02c", "#9467bd")) %>%
+      add_markers() %>%
+      add_text(textfont = list(
+  family = "sans serif",
+  size = 11,
+  color = "#000000"), 
+  textposition = "top right", showlegend = FALSE) %>% 
+  
+      layout(title = "<b>Tertiary attainment and GDP per capita between states (2015)</b>",
+    font = list(size = 11),
+    xaxis = list(title = "GDP per capita"),
+    yaxis = list(title = "% of young adults (25-34) with college diploma"),
+    margin = list(l = 60, r = 100),
+    width = 900, height = 400
+  ) %>% 
+      layout(annotations = 
+ list(x = 1, y = -0.1, text = "Source: PNAD (2015).", 
+      showarrow = F, xref='paper', yref='paper', 
+      xanchor='right', yanchor='auto', xshift=0, yshift=0,
+      font=list(size=10))
+ )
+      
+      
+```
+
+Education at a Glance also points out to the fact that the "difference in expenditure per student between tertiary and earlier levels of education in Brazil is the highest of all OECD and partner countries" (page 5). In 2015, Brazil spent more than three times with students in higher education than with students in primary, secondary, and post-secondary non-tertiary public institutions. This is the highest difference among OECD countries and partners. The figure below helps us to visualize the size of the gap in Brazilian government spending by educational level: it continues to have an "European" level of spending in college, but is among those who spend least on the earlier levels of education. It is true that [Brazil already invests more than the average of the OECD countries as a percentage of GDP](http://www.tesouro.fazenda.gov.br/documents/10180/617267/CesefEducacao9jul18/4af4a6db-8ec6-4cb5-8401-7c6f0abf6340), and the improvement of educational policies and processes is able to improve quality with the current level of expenditures. However, according to OECD, the country is still in a group of countries with lower expenditures per student, for which the evidence shows that more spending correlates with better results.
+
+<br/>
+
+```{r exp, echo=F, message=F, warning=F, echo=FALSE, comment=F, error=F, fig.align='center'}
+
+exp_perc %>%
+      clean_names %>%
+      tidyr::drop_na(.) %>% 
+      dplyr::filter(!country %in% c("EU22 average", "EU23 average incl. Lithuania",
+                                    "OECD average incl. Lithuania", 
+                                    "Austria", "Belgium", "Ireland", "Estonia",
+                                    "Slovenia", "Hungary")) %>%
+      dplyr::mutate(rate = (tertiary-pri_sec)/pri_sec,
+                    country = factor(country,
+                                   levels = unique(country)[order(tertiary, decreasing = FALSE)])) %>% 
+      plot_ly(color = I("gray80")) %>%
+  add_segments(x = ~pri_sec, xend = ~tertiary, y = ~country, yend = ~country, showlegend = FALSE) %>%
+  add_markers(x = ~pri_sec, y = ~country, name = "Primary", color = I("darkred")) %>%
+  add_markers(x = ~tertiary, y = ~country, name = "Tertiary", color = I("darkblue")) %>%
+  layout(
+    title = "<b>Expenditure per full-time equivalent student in public institutions (2015)</b>",
+    font = list(size = 10),
+    xaxis = list(title = "", zeroline = F),
+    yaxis = list(title = "", zeroline = F),
+    autosize = T,
+    height = "100%",
+    margin = list(l = 65)
+  ) %>% 
+  layout(annotations = 
+ list(x = 1, y = -0.1, text = "Source: OECD/UIS/Eurostat (2018).", 
+      showarrow = F, xref='paper', yref='paper', 
+      xanchor='right', yanchor='auto', xshift=0, yshift=0,
+      font=list(size=10))
+ )
+```
+
+<br/>
+
+Finally, another interesting finding from the OECD's report refers to the college completion according to fields of study. It is not directly related to the topic of the previous analyzes, but it is particularly relevant for discussing college completion in a complex tertiary system as the Brazilian. The figure below compares the distribution of graduates among fields of study in Brazil, the OECD average, and in three Western European countries that represent three groups with disparate patterns in this regard (learn more in [this study](http://journals.sagepub.com/doi/10.1177/0020715208093076)). The most popular fields of study for tertiary graduates in Brazil are Business, Administration and Law, and Education, both of which have a higher share of graduates than the OECD countries. Brazil has one of the lowest shares of graduates in STEM fields: 17% compared to an OECD average of 24% (Sweden and United Kingdom have both 27% and Portugal has 29% of graduates in STEM). A recent study showed this is a highly heterogeneous field of study in Brazilian tertiary system: advantaged students have higher probabilities of graduating in the prestigious field of Engineering than in other STEM or Technological courses. In addition to increasing the number of students with a degree in the STEM area, public policies for higher education in Brazil have the challenge of helping underprivileged students to successfully complete these courses.
+
+```{r field, echo=F, message=F, warning=F, echo=FALSE, comment=F, error=F, fig.align='center'}
+
+grad_field <- grad_field %>% 
+      dplyr::filter(country %in% c("Brazil", "OECD average",
+                                   "United Kingdom", "Sweden",
+                                   "Portugal", "Slovak Republic")) %>%
+      reshape2::melt(id.vars = c("country")) %>%
+      ungroup
+
+
+plot_ly(
+      type = 'scatterpolar',
+      fill = 'toself'
+) %>%
+      add_trace(line = list(color = "darkred"),
+                marker = list(color = "darkred"),
+                fillcolor = list(color = "darkred"),
+            r = c(
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Brazil", variable == "education"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Brazil", variable == "arts"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Brazil", variable == "social"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Brazil", variable == "business"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Brazil", variable == "natural"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Brazil", variable == "ict"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Brazil", variable == "eng"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Brazil", variable == "agric"),  value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Brazil", variable == "health"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Brazil", variable == "serv"), value))
+                  
+                  ),
+            theta = c('Education',
+                      'Humanities',
+                      'Social Sciences', 
+                      'Business', 
+                      'Natural Sciences', 
+                      'ICT',
+                      'Engineering',
+                      'Agriculture',
+                      'Health',
+                      'Services'),
+            name = 'Brazil'
+      ) %>%
+      add_trace(line = list(color = "darkblue"),
+                marker = list(color = "darkblue"),
+                fillcolor = list(color = "darkblue"),
+            r = c(
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "OECD average", variable == "education"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "OECD average", variable == "arts"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "OECD average", variable == "social"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "OECD average", variable == "business"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "OECD average", variable == "natural"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "OECD average", variable == "ict"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "OECD average", variable == "eng"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "OECD average", variable == "agric"),  value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "OECD average", variable == "health"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "OECD average", variable == "serv"), value))
+                  
+            ),
+            theta = c('Education',
+                      'Humanities',
+                      'Social Sciences', 
+                      'Business', 
+                      'Natural Sciences', 
+                      'ICT',
+                      'Engineering',
+                      'Agriculture',
+                      'Health',
+                      'Services'),
+            name = 'OECD average'
+      ) %>%
+      add_trace(line = list(color = "darkorange"),
+                marker = list(color = "darkorange"),
+                fillcolor = list(color = "darkorange"),
+            r = c(
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "United Kingdom", variable == "education"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "United Kingdom", variable == "arts"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "United Kingdom", variable == "social"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "United Kingdom", variable == "business"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "United Kingdom", variable == "natural"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "United Kingdom", variable == "ict"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "United Kingdom", variable == "eng"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "United Kingdom", variable == "agric"),  value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "United Kingdom", variable == "health"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "United Kingdom", variable == "serv"), value))
+                  
+              ),
+            theta = c('Education',
+                      'Humanities',
+                      'Social Sciences', 
+                      'Business', 
+                      'Natural Sciences', 
+                      'ICT',
+                      'Engineering',
+                      'Agriculture',
+                      'Health',
+                      'Services'),
+            name = 'United Kingdom'
+      ) %>%
+      
+      add_trace(line = list(color = "darkgreen"),
+                marker = list(color = "darkgreen"),
+                fillcolor = list(color = "darkgreen"),
+            r = c(
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Sweden", variable == "education"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Sweden", variable == "arts"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Sweden", variable == "social"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Sweden", variable == "business"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Sweden", variable == "natural"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Sweden", variable == "ict"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Sweden", variable == "eng"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Sweden", variable == "agric"),  value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Sweden", variable == "health"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Sweden", variable == "serv"), value))
+                  
+              ),
+            theta = c('Education',
+                      'Humanities',
+                      'Social Sciences', 
+                      'Business', 
+                      'Natural Sciences', 
+                      'ICT',
+                      'Engineering',
+                      'Agriculture',
+                      'Health',
+                      'Services'),
+            name = 'Sweden'
+      ) %>%
+      
+      add_trace(line = list(color = "gold"),
+                marker = list(color = "gold"),
+                fillcolor = list(color = "gold"),
+            r = c(
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Portugal", variable == "education"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Portugal", variable == "arts"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Portugal", variable == "social"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Portugal", variable == "business"), value)), 
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Portugal", variable == "natural"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Portugal", variable == "ict"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Portugal", variable == "eng"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Portugal", variable == "agric"),  value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Portugal", variable == "health"), value)),
+                  dplyr::pull(dplyr::select(dplyr::filter(grad_field, country == "Portugal", variable == "serv"), value))
+                  
+              ),
+            theta = c('Education',
+                      'Humanities',
+                      'Social Sciences', 
+                      'Business', 
+                      'Natural Sciences', 
+                      'ICT',
+                      'Engineering',
+                      'Agriculture',
+                      'Health',
+                      'Services'),
+            name = 'Portugal'
+      ) %>%
+      
+      layout(
+            title = "<b>Distribution of tertiary graduates, by field of study (2016)</b>",
+            font = list(size = 10),
+            margin = list(l = 65, t = 65),
+            polar = list(
+                  radialaxis = list(
+                        visible = T,
+                        range = c(0, 36)
+                  )
+            ),
+            annotations = 
+ list(x = 1, y = -0.1, text = "Source: OECD/UIS/Eurostat (2018).", 
+      showarrow = F, xref='paper', yref='paper', 
+      xanchor='right', yanchor='auto', xshift=0, yshift=0,
+      font=list(size=10))
+      ) 
+```
+
+<br/>
+
+*The code that allows to reproduce the analysis above using the same data as OECD is here.*
+
+
+
