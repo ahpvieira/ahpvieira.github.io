@@ -25,7 +25,6 @@ Earlier this month, the OECD released the results of this year edition of the [E
 In this text, I'll go a little deeper into  one of the key messages from the OECD report: in some aspects, Brazilian educational system is the most unequal among unequal. This is true for three indicators: tertiary attainment among young adults, teachers' average actual salaries, and expenditure per student between levels of education. There are more differences in the first two indicators among states in Brazil than between countries in OECD, and the difference in expenditure per student between tertiary and earlier levels of education in Brazil is the highest of all OECD and partner countries (the unit of analysis being here level of education).
 
 ```{r read, echo=F, message=F, warning=F, echo=FALSE, comment=F, error=F, results="hide"}
-setwd("C:/Users/ahpvi/Documents/ahpvieira.github.io/data")
 url <- "https://nces.ed.gov/surveys/annualreports/oecd/tables_2017/xls/tabnA1.1_bra_eng.xlsx"
 GET(url, write_disk(tf <- tempfile(fileext = ".xlsx")))
 attain_sub <- read_excel(tf, 
@@ -342,10 +341,3 @@ plot_ly(
       font=list(size=10))
       ) 
 ```
-
-<br/>
-
-*The code that allows to reproduce the analysis above using the same data as OECD is here.*
-
-
-
